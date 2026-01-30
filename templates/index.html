@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>皇翔娛樂城</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    
+    <style>
+        /* 字體設定 */
+        .calligraphy-font { 
+            font-family: 'BiauKai', 'DFKai-SB', 'KaiTi', 'STKaiti', '楷体', serif;
+            font-weight: 900; 
+        }
+
+        .imperial-title {
+            font-size: 5rem;
+            color: #d90429;
+            text-shadow: 4px 4px 0px rgba(0, 0, 0, 0.15); 
+            margin-bottom: 0;
+            line-height: 1.2;
+            letter-spacing: 5px; 
+        }
+        
+        .imperial-subtitle {
+            font-size: 1.8rem;
+            color: #555;
+            margin-top: 15px;
+            letter-spacing: 3px;
+        }
+
+        /* 跑馬燈樣式 */
+        .marquee-box {
+            background-color: #000; 
+            border: 3px solid #d90429; 
+            color: #FFD700; 
+            font-size: 1.5rem;
+            font-weight: bold;
+            padding: 8px 0;
+            border-radius: 50px; 
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+            margin-bottom: 20px;
+            font-family: "Microsoft JhengHei", sans-serif; 
+        }
+
+        @media (max-width: 768px) { 
+            .imperial-title { font-size: 3.2rem; } 
+            .imperial-subtitle { font-size: 1.1rem; }
+            .marquee-box { font-size: 1.1rem; }
+        }
+        
+        .score-positive { color: blue; font-weight: bold; }
+        .score-negative { color: red; font-weight: bold; }
+        
+        /* 戰績卡片樣式 (取代舊表格) */
+        .record-card {
+            border-left: 5px solid #d90429; /* 左邊紅條 */
+            transition: transform 0.2s;
+        }
+        .record-card:hover {
+            transform: translateY(-3px); /* 滑鼠移過去浮起來 */
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+        .player-chip {
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 8px;
+            text-align: center;
+        }
+        .dong-badge {
+            background-color: #fff3cd;
+            color: #856404;
+            font-weight: bold;
+            padding: 5px 10px;
+            border-radius: 20px;
+            border: 1px solid #ffeeba;
+        }
+
+        .rank-table th { background-color: #212529; color: gold; }
+        .top-winner { background-color: #e6f7ff; }
+        .remove-btn { color: #999; cursor: pointer; font-size: 1.2rem; }
+        .remove-btn:hover { color: red; }
+    </style>
+</head>
+<body class="bg-light">
+
+<div class="container py-5">
+    
+    <div class="text-center mb-4">
+        <h1 class="imperial-title calligraphy-font">皇翔娛樂城</h1>
+        <div class="imperial-subtitle calligraphy-font">
+            <span class="border border-dark px-4 py-1 rounded-pill bg-white shadow-sm">
+                🀄 不限人數 • 無限暢玩 🀄
+            </span>
+        </div>
+    </div>
+
+    <div class="marquee-box">
+        <marquee scrollamount="8">
+            📣 賭光輸光為國爭光！ 📣 小賭養家活口，大賭興邦立國！ 📣 贏錢是技術，輸錢是藝術！ 📣 皇翔娛樂城祝您把把自摸，槓上開花！
+        </marquee>
+    </div>
+
+    <div class="card mb-4 shadow-sm">
+        <div class="card-body bg-white">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h5 class="card-title text-secondary m-0">👤 玩家名單設定</h5>
+                <a href="/players" class="btn btn-outline-primary btn-sm">🛠️ 修改/管理名單</a>
+            </div>
+            <form action="/add_player" method="POST" class="row g-3">
+                <div class="col-auto">
+                    <input type="text" name="new_player_name" class="form-control" placeholder="輸入新玩家姓名" required>
+                </div>
+                <div class="col-auto">
+                    <button type="submit" class="btn btn-dark">新增</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="card mb-4 shadow">
+        <div class="card-header bg-danger text-white fw-bold d-flex justify-content-between align-items-center">
+            <span>📝 結算戰績</span>
+            <span id="playerCountBadge" class="badge bg-white text-danger">4人</span>
+        </div>
+        <div class="card-body">
+            <form action="/add_record" method="POST" id="recordForm" oninput="validateSum()">
+                <div id="playersContainer"></div>
+                <div class="mb-3 text-center">
+                    <button type="button" class="btn btn-outline-secondary btn-sm rounded-pill px-4" onclick="addPlayerRow()">
+                        ➕ 增加一位玩家 (5人輪流用)
+                    </button>
+                </div>
+                <div class="alert alert-light text-center border bg-light" role="alert">
+                    玩家總和 <span id="playerSumDisplay" class="fw-bold">0</span> + 
+                    東錢 <span id="dongDisplay" class="fw-bold text-warning">0</span> = 
+                    <span id="finalSumDisplay" class="fw-bold">0</span>
+                    <br>
+                    <span id="statusMessage" class="mt-2 d-inline-block">✅ 帳目平衡</span>
+                </div>
+                <hr>
+                <div class="row mb-3 align-items-center p-3 bg-warning bg-opacity-10 rounded mx-0">
+                    <div class="col-md-2 fw-bold text-danger">💰 東錢</div>
+                    <div class="col-md-4">
+                        <input type="number" id="dongInput" name="dong_qian" class="form-control border-warning bg-white" value="0" oninput="validateSum()">
+                    </div>
+                </div>
+                <button type="submit" id="submitBtn" class="btn btn-danger w-100 py-2 fs-5 shadow-sm">確認儲存</button>
+            </form>
+        </div>
+    </div>
+
+    <div class="d-flex justify-content-between align-items-center mb-3 border-start border-5 border-danger ps-2 mt-5">
+        <h3 class="m-0">📊 近期戰績</h3>
+        <a href="/history" class="btn btn-outline-dark btn-sm">🔍 完整紀錄</a>
+    </div>
+
+    <div class="mb-5">
+        {% for row in records %}
+        <div class="card mb-3 shadow-sm record-card">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center mb-3 border-bottom pb-2">
+                    <span class="text-muted small">📅 {{ row.date[:16] }}</span>
+                    <span class="dong-badge">💰 東錢: -{{ row.dong }}</span>
+                </div>
+                
+                <div class="row g-2">
+                    {% for p in row.data %}
+                    <div class="col-6 col-md-4 col-lg-3">
+                        <div class="player-chip">
+                            <div class="fw-bold text-dark">{{ p.name }}</div>
+                            <div class="fs-5 {{ 'score-positive' if p.score > 0 else 'score-negative' }}">
+                                {{ p.score }}
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <h3 class="mb-3 border-start border-5 border-primary ps-2">🏆 皇翔英雄榜</h3>
+    <div class="table-responsive">
+        <table class="table table-bordered bg-white shadow rank-table text-center align-middle">
+            <thead><tr><th>名次</th><th>玩家</th><th>總戰績</th></tr></thead>
+            <tbody>
+                {% for player, score in rankings %}
+                <tr class="{{ 'top-winner' if loop.index == 1 else '' }}">
+                    <td>{% if loop.index == 1 %}🥇{% elif loop.index == 2 %}🥈{% elif loop.index == 3 %}🥉{% else %}{{ loop.index }}{% endif %}</td>
+                    <td class="fw-bold fs-5">{{ player }}</td>
+                    <td class="fs-4 {{ 'score-positive' if score > 0 else 'score-negative' }}">{{ score }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    
+    <div class="text-center text-muted mt-5 mb-3 small">
+        皇翔娛樂城系統 v9.0 • Powered by PythonAnywhere
+    </div>
+</div>
+
+<script>
+    const availablePlayers = [{% for player in players %}"{{ player }}",{% endfor %}];
+
+    function createRowHtml(index) {
+        let options = '<option value="" disabled selected>選擇玩家</option>';
+        availablePlayers.forEach(p => { options += `<option value="${p}">${p}</option>`; });
+        return `
+            <div class="row mb-2 align-items-center player-row" id="row-${index}">
+                <div class="col-5">
+                    <select name="player_name[]" class="form-select form-select-sm" required>${options}</select>
+                </div>
+                <div class="col-5">
+                    <input type="number" name="player_score[]" class="form-control form-select-sm score-input" placeholder="分數" required>
+                </div>
+                <div class="col-2 text-center">
+                    ${index >= 4 ? `<span class="remove-btn" onclick="removeRow(${index})">✖</span>` : ''}
+                </div>
+            </div>`;
+    }
+    window.onload = function() {
+        const container = document.getElementById('playersContainer');
+        for(let i=0; i<4; i++) { container.insertAdjacentHTML('beforeend', createRowHtml(i)); }
+        validateSum();
+    };
+    let rowCount = 4;
+    function addPlayerRow() {
+        document.getElementById('playersContainer').insertAdjacentHTML('beforeend', createRowHtml(rowCount));
+        rowCount++;
+        updateCountBadge();
+        validateSum();
+    }
+    function removeRow(index) {
+        const row = document.getElementById(`row-${index}`);
+        if(row) row.remove();
+        validateSum();
+        updateCountBadge();
+    }
+    function updateCountBadge() {
+        document.getElementById('playerCountBadge').innerText = document.querySelectorAll('.player-row').length + "人";
+    }
+    function validateSum() {
+        let inputs = document.querySelectorAll('input[name="player_score[]"]');
+        let playerTotal = 0;
+        inputs.forEach(input => { playerTotal += (parseInt(input.value) || 0); });
+        let dong = parseInt(document.getElementById('dongInput').value) || 0;
+        let finalCheck = playerTotal + dong;
+        document.getElementById('playerSumDisplay').innerText = playerTotal;
+        document.getElementById('dongDisplay').innerText = dong;
+        let finalDisplay = document.getElementById('finalSumDisplay');
+        let msg = document.getElementById('statusMessage');
+        let btn = document.getElementById('submitBtn');
+        finalDisplay.innerText = finalCheck;
+        if (finalCheck === 0) {
+            finalDisplay.style.color = "green";
+            msg.innerHTML = "✅ 帳目平衡";
+            msg.className = "mt-2 d-inline-block text-success fw-bold";
+            btn.disabled = false;
+        } else {
+            finalDisplay.style.color = "red";
+            msg.innerHTML = "❌ 帳目不平";
+            msg.className = "mt-2 d-inline-block text-danger fw-bold";
+            btn.disabled = true;
+        }
+    }
+</script>
+</body>
+</html>
