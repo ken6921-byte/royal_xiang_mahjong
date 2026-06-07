@@ -5,7 +5,8 @@ from flask import Flask, render_template, request, redirect, url_for, flash
 
 app = Flask(__name__)
 app.secret_key = 'royal_xiang_final_v8_del'
-DB_NAME = "mahjong.db"
+import os
+DB_NAME = os.path.join(os.path.dirname(os.path.abspath(__file__)), "mahjong.db")
 
 def init_db():
     conn = sqlite3.connect(DB_NAME)
@@ -28,17 +29,34 @@ def get_rankings():
     c.execute("SELECT players_data FROM records")
     rows = c.fetchall()
     conn.close()
-    scores = {}
+    stats = {}
     for row in rows:
         try:
-            data_list = json.loads(row[0]) 
+            data_list = json.loads(row[0])
             for p in data_list:
                 name = p['name']
                 score = int(p['score'])
-                scores[name] = scores.get(name, 0) + score
+                if name not in stats:
+                    stats[name] = {'total': 0, 'count': 0, 'wins': 0}
+                stats[name]['total'] += score
+                stats[name]['count'] += 1
+                if score > 0:
+                    stats[name]['wins'] += 1
         except:
             continue
-    return sorted(scores.items(), key=lambda x: x[1], reverse=True)
+    result = []
+    for name, s in stats.items():
+        count = s['count']
+        win_rate = round(s['wins'] / count * 100, 1) if count > 0 else 0
+        avg = round(s['total'] / count, 1) if count > 0 else 0
+        result.append({
+            'name': name,
+            'total': s['total'],
+            'count': count,
+            'win_rate': win_rate,
+            'avg': avg
+        })
+    return sorted(result, key=lambda x: x['total'], reverse=True)
 
 @app.route('/')
 def index():
@@ -81,6 +99,7 @@ def history():
             if not found:
                 continue
         filtered_records.append({
+            "id": r[0],
             "date": r[1],
             "data": data_list,
             "dong": r[3]
@@ -196,6 +215,69 @@ def add_record():
     conn.close()
 
     return redirect(url_for('index'))
+
+@app.route('/delete_record/<int:record_id>', methods=['POST'])
+def delete_record(record_id):
+    conn = sqlite3.connect(DB_NAME)
+    c = conn.cursor()
+    c.execute("DELETE FROM records WHERE id = ?", (record_id,))
+    conn.commit()
+    conn.close()
+    return redirect(request.referrer or url_for('history'))
+
+@app.route('/edit_record/<int:record_id>', methods=['GET', 'POST'])
+def edit_record(record_id):
+    conn = sqlite3.connect(DB_NAME)
+    c = conn.cursor()
+    if request.method == 'POST':
+        player_names = request.form.getlist('player_name[]')
+        player_scores = request.form.getlist('player_score[]')
+        dong = int(request.form.get('dong_qian') or 0)
+        record_data = []
+        total_score = 0
+        for i in range(len(player_names)):
+            name = player_names[i]
+            try:
+                score = int(player_scores[i])
+            except:
+                score = 0
+            if name:
+                record_data.append({"name": name, "score": score})
+                total_score += score
+        if total_score + dong != 0:
+            conn.close()
+            return f"<script>alert('帳目不平！'); window.history.back();</script>"
+        c.execute("UPDATE records SET players_data = ?, dong_qian = ? WHERE id = ?",
+                  (json.dumps(record_data, ensure_ascii=False), dong, record_id))
+        conn.commit()
+        conn.close()
+        return redirect(url_for('history'))
+    c.execute("SELECT * FROM records WHERE id = ?", (record_id,))
+    row = c.fetchone()
+    c.execute("SELECT name FROM players ORDER BY name")
+    players = [r[0] for r in c.fetchall()]
+    conn.close()
+    if not row:
+        return redirect(url_for('history'))
+    record = {"id": row[0], "date": row[1], "data": json.loads(row[2]), "dong": row[3]}
+    return render_template('edit_record.html', record=record, players=players)
+
+@app.route('/player/<name>')
+def player_stats(name):
+    conn = sqlite3.connect(DB_NAME)
+    c = conn.cursor()
+    c.execute("SELECT date, players_data FROM records ORDER BY date ASC")
+    rows = c.fetchall()
+    conn.close()
+    history = []
+    cumulative = 0
+    for row in rows:
+        data_list = json.loads(row[1])
+        for p in data_list:
+            if p['name'] == name:
+                cumulative += int(p['score'])
+                history.append({"date": row[0][:10], "score": int(p['score']), "cumulative": cumulative})
+    return render_template('player_stats.html', name=name, history=history)
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
